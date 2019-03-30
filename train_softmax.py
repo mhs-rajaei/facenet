@@ -33,18 +33,12 @@ import sys
 import random
 import tensorflow as tf
 import numpy as np
-import importlib
 import argparse
 from scipy import misc
 
-# import facenet
-# import lfw
 import h5py
 import math
 import tensorflow.contrib.slim as slim
-from tensorflow.python.ops import data_flow_ops
-from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
 
 PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -58,12 +52,11 @@ eval_data_reader = SourceFileLoader('eval_data_reader', os.path.join(PROJECT_PAT
 log_path = os.path.join(PROJECT_PATH, 'logs')
 models_path = os.path.join(PROJECT_PATH, 'models')
 # train_dataset_path = r'F:\Documents\JetBrains\PyCharm\OFR\images\1024First_lfw_160'
+# train_dataset_path = r'F:\Documents\JetBrains\PyCharm\OFR\images\200_lfw_192'
 train_dataset_path = r'F:\Documents\JetBrains\PyCharm\OFR\images\200END_lfw_160_train'
 # eval_dir_path = r'F:\Documents\JetBrains\PyCharm\OFR\images\lfw_160'
 eval_dir_path = r'F:\Documents\JetBrains\PyCharm\OFR\images\200END_lfw_160_test_Copy'
-# train_dataset_path = r'F:\Documents\JetBrains\PyCharm\OFR\images\200_lfw_192'
 learning_rate_schedule_decay_path = os.path.join(PROJECT_PATH, 'data/learning_rate_schedule_classifier_casia.txt')
-# eval_pairs_path = os.path.join(PROJECT_PATH, 'data/pairs.txt')
 eval_pairs_path = os.path.join(PROJECT_PATH, 'data/200END_lfw_160_test_Copy_pairs.txt')
 print(PROJECT_PATH)
 print(log_path)
@@ -90,7 +83,7 @@ class Args:
 
     seed = 313
     image_size = 160
-    batch_size = 90
+    batch_size = 8
     learning_rate = -1
 
     embedding_size = 512
@@ -126,9 +119,11 @@ class Args:
     eval_distance_metric = 1
     eval_use_flipped_images = True
     eval_subtract_mean = True
-    eval_pairs = eval_pairs_path
     eval_nrof_folds = 2
 
+    eval_dataset = eval_dir_path
+    eval_pair = eval_pairs_path
+    save = False
 
 def main(args):
   
@@ -173,7 +168,7 @@ def main(args):
     if args.eval_dir:
         print('Evaluation directory: %s' % args.eval_dir)
         # Read the file containing the pairs used for testing
-        pairs = lfw.read_pairs(os.path.expanduser(args.eval_pairs))
+        pairs = lfw.read_pairs(os.path.expanduser(args.eval_pair))
         # Get the paths for the corresponding images
         eval_paths, eval_actual_issame = lfw.get_paths(os.path.expanduser(args.eval_dir), pairs)
 
@@ -393,9 +388,9 @@ def main(args):
                              args.use_fixed_image_standardization)
 
                 stat['time_validate'][epoch-1] = time.time() - t
-
-                # Save variables and the metagraph if it doesn't exist already
-                save_variables_and_metagraph(sess, saver, summary_writer, model_dir, subdir, epoch)
+                if args.save:
+                    # Save variables and the metagraph if it doesn't exist already
+                    save_variables_and_metagraph(sess, saver, summary_writer, model_dir, subdir, epoch)
 
                 # Evaluate on LFW
                 t = time.time()
@@ -420,11 +415,11 @@ def main(args):
                     print()
 
                 stat['time_evaluate'][epoch-1] = time.time() - t
-
-                print('Saving statistics')
-                with h5py.File(stat_file_name, 'w') as f:
-                    for key, value in stat.iteritems():
-                        f.create_dataset(key, data=value)
+                if args.save:
+                    print('Saving statistics')
+                    with h5py.File(stat_file_name, 'w') as f:
+                        for key, value in stat.items():
+                            f.create_dataset(key, data=value)
     
     return model_dir
 
@@ -947,4 +942,5 @@ def tf_gen_dataset_perfarmance(image_list, label_list, nrof_preprocess_threads, 
 
 
 if __name__ == '__main__':
-    main(parse_arguments(sys.argv[1:]))
+    args_obj = Args()
+    main(args_obj)
